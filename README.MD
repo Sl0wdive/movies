@@ -37,10 +37,10 @@ npm run start
 
 ## Docker
 
-### BUild the docker image
+### Build the docker image
 
 ```bash
-docker build -t your_super_account/movies
+docker build -t your_super_account/movies .
 ```
 
 ### Run with Docker
