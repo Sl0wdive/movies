@@ -37,16 +37,16 @@ npm run start
 
 ## Docker
 
-### BUild the docker image
+### Build the docker image
 
 ```bash
-docker build -t your_super_account/movies
+docker build -t your_super_account/movies .
 ```
 
 ### Run with Docker
 
 ```bash
-docker run --name movies -p 8000:8050 -e APP_PORT=8050 -e DB_USER=user -e DB_PASS=your_pass -e JWT_SECRET=your_jwt_secret sl0wdive/movies
+docker run --name movies -p 8000:8050 -e APP_PORT=8050 -e DB_USER=user -e DB_PASS=your_pass -e JWT_SECRET=your_jwt_secret your_super_account/movies
 ```
 
 ## Accessing the Application
