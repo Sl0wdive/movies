@@ -1,0 +1,17 @@
+node_modules
+dist
+uploads
+.env
+dev.sqlite
+
+.git
+.vscode
+.idea
+
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+*.log
+.DS_Store
+Thumbs.db
