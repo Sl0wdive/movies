@@ -43,9 +43,14 @@ export async function getById(req, res) {
 export async function list(req, res) {
   try {
     const { count, rows } = await listMovies(req.query);
+    const { limit } = req.query;
     return res
       .status(200)
-      .json({ data: rows, meta: { total: count }, status: 1 });
+      .json({
+        data: rows,
+        meta: { total: limit < count ? limit : count },
+        status: 1,
+      });
   } catch (err) {
     return res
       .status(500)

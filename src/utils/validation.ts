@@ -49,16 +49,20 @@ export const validateMovieFile = async (req, res, next) => {
 };
 
 export const registerValidation = [
-  body(
-    "email",
-    "Invalid email format. Please enter a valid email address."
-  ).isEmail(),
-  body("password", "Password must be at least 5 characters long.").isLength({
-    min: 5,
-  }),
-  body("name", "Full name must be at least 3 characters long.").isLength({
-    min: 3,
-  }),
+  body("email", "Invalid email format. Please enter a valid email address.")
+    .isEmail()
+    .matches(/^[\x00-\x7F]+$/)
+    .normalizeEmail(),
+  body("password", "Password must be at least 5 characters long.")
+    .trim()
+    .isLength({
+      min: 5,
+    }),
+  body("name", "Full name must be at least 3 characters long.")
+    .trim()
+    .isLength({
+      min: 3,
+    }),
   body("confirmPassword").custom((value, { req }) => {
     if (value !== req.body.password) {
       throw new Error("Passwords do not match.");
@@ -80,6 +84,7 @@ export const loginValidation = [
 export const movieValidation = [
   body("title", "Title is required and must be at least 1 character long.")
     .isString()
+    .trim()
     .isLength({ min: 1 }),
   body(
     "year",
@@ -93,7 +98,10 @@ export const movieValidation = [
   body("actors", "Actors must be a non-empty array of strings.").isArray({
     min: 1,
   }),
-  body("actors.*", "Each actor name must be a non-empty string.")
+  body("actors.*", "Invalid actor name format. Please enter a valid name.")
     .isString()
+    .trim()
+    .isLength({ min: 1 })
+    .matches(/^[a-zA-Zа-яА-ЯёЁїЇєЄіІґҐ\-\.,\s]+$/)
     .isLength({ min: 1 }),
 ];

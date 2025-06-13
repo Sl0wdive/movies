@@ -10,6 +10,7 @@ import Actor from "./actors.model";
 interface MovieAttributes {
   id: number;
   title: string;
+  normalizedTitle: string;
   year: number;
   format: string;
   createdAt?: Date;
@@ -24,6 +25,7 @@ class Movie
 {
   public id!: number;
   public title!: string;
+  public normalizedTitle!: string;
   public year!: number;
   public format!: string;
 
@@ -44,6 +46,11 @@ Movie.init(
       type: new DataTypes.STRING(128),
       allowNull: false,
     },
+    normalizedTitle: {
+      type: new DataTypes.STRING(128),
+      allowNull: false,
+      unique: true,
+    },
     year: {
       type: new DataTypes.INTEGER(),
       allowNull: false,
@@ -56,6 +63,9 @@ Movie.init(
   {
     sequelize,
     tableName: "movies",
+    defaultScope: {
+      attributes: { exclude: ["normalizedTitle"] },
+    },
     timestamps: true,
   }
 );

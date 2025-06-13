@@ -6,42 +6,61 @@ import MovieActor from "../models/movie.actor.model";
 import fs from "fs";
 
 function parseMovieFile(content) {
+  if (content.charCodeAt(0) === 0xfeff) {
+    content = content.substring(1);
+  }
+
   return content
-    .split("\n\n")
+    .split(/\r?\n\s*\r?\n/)
     .filter((block) => block.trim() !== "")
     .map((block) => {
-      const lines = block.split("\n");
-      return {
-        title: lines
-          .find((l) => l.startsWith("Title:"))
-          .replace("Title:", "")
-          .trim(),
-        releaseYear: parseInt(
-          lines
-            .find((l) => l.startsWith("Release Year:"))
-            .replace("Release Year:", "")
-            .trim()
-        ),
-        format: lines
-          .find((l) => l.startsWith("Format:"))
-          .replace("Format:", "")
-          .trim(),
-        stars: lines
-          .find((l) => l.startsWith("Stars:"))
-          .replace("Stars:", "")
-          .split(",")
-          .map((s) => s.trim()),
+      const lines = block.split("\n").filter((line) => line.trim() !== "");
+
+      const movie = {
+        title: "",
+        releaseYear: null,
+        format: "",
+        stars: [],
       };
-    });
+
+      lines.forEach((line) => {
+        const lowerLine = line.toLowerCase();
+
+        if (lowerLine.startsWith("title:")) {
+          movie.title = line.replace(/^title:\s*/i, "").trim();
+        } else if (lowerLine.startsWith("release year:")) {
+          const yearStr = line.replace(/^release year:\s*/i, "").trim();
+          movie.releaseYear = parseInt(yearStr) || null;
+        } else if (lowerLine.startsWith("format:")) {
+          movie.format = line.replace(/^format:\s*/i, "").trim();
+        } else if (lowerLine.startsWith("stars:")) {
+          movie.stars = line
+            .replace(/^stars:\s*/i, "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s !== "");
+        }
+      });
+
+      return movie;
+    })
+    .filter((movie) => movie.title);
 }
 
 async function processMovieImport(moviesData, transaction) {
   const importedMovies = [];
 
   for (const movieData of moviesData) {
+    const rawTitle = movieData.title.trim();
+    const normalizedTitle = rawTitle.toLowerCase();
+
     const [movie] = await Movie.findOrCreate({
       where: {
-        title: movieData.title,
+        normalizedTitle,
+      },
+      defaults: {
+        title: rawTitle,
+        normalizedTitle,
         year: movieData.releaseYear,
         format: movieData.format,
       },
@@ -77,19 +96,22 @@ export const createMovie = async (
 ): Promise<Movie | { error: string }> => {
   const { title, year, format, actors } = data;
 
+  const rawTitle = title.trim();
+  const normalizedTitle = rawTitle.toLowerCase();
+
   const existingMovie = await Movie.findOne({
-    where: { title },
+    where: { normalizedTitle },
     transaction,
   });
 
   if (existingMovie) {
-    await transaction.rollback();
     return { error: "Movie already exists." };
   }
 
   const newMovie = await Movie.create(
     {
       title,
+      normalizedTitle,
       year,
       format,
     },
@@ -137,7 +159,8 @@ export const listMovies = async (query) => {
   const include: any = [];
 
   if (title) {
-    where.title = { [Op.like]: `%${title}%` };
+    const normalizedTitle = title.trim().toLowerCase();
+    where.normalizedTitle = { [Op.like]: `%${normalizedTitle}%` };
   }
 
   if (actor) {
@@ -161,14 +184,29 @@ export const listMovies = async (query) => {
     });
   }
 
-  return await Movie.findAndCountAll({
+  const { count, rows: unsortedRows } = await Movie.findAndCountAll({
     where,
     include,
-    order: [[sort, order]],
+    order: sort === "title" ? [] : [[sort, order]],
     limit: parseInt(limit),
     offset: parseInt(offset),
     distinct: true,
   });
+
+  let rows = unsortedRows;
+  if (sort === "title") {
+    rows = [...unsortedRows].sort((a, b) => {
+      return (
+        a.title.localeCompare(b.title, "uk-UA", { sensitivity: "base" }) *
+        (order === "ASC" ? 1 : -1)
+      );
+    });
+  }
+
+  return {
+    count,
+    rows,
+  };
 };
 
 export const deleteMovie = async (id, transaction) => {
@@ -186,7 +224,10 @@ export const updateMovie = async (id, data, transaction) => {
   const movie = await Movie.findByPk(id, { transaction });
   if (!movie) return null;
 
-  await movie.update({ title, year, format }, { transaction });
+  const rawTitle = title.trim();
+  const normalizedTitle = rawTitle.toLowerCase();
+
+  await movie.update({ title, normalizedTitle, year, format }, { transaction });
 
   if (Array.isArray(actors)) {
     await MovieActor.destroy({ where: { MovieId: id }, transaction });
